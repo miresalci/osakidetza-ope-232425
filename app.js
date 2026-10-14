@@ -55,6 +55,7 @@ const state = {
   userAnswers: new Map(),
   isSubmitted: false,
   isPendingPanelOpen: false,
+  lastReviewJumpIndex: -1,
 };
 
 const elements = {
@@ -78,8 +79,10 @@ const elements = {
   compactProgressBar: document.querySelector("#compactProgressBar"),
   pendingToggleButton: document.querySelector("#pendingToggleButton"),
   pendingToggleIcon: document.querySelector("#pendingToggleIcon"),
+  pendingToggleLabel: document.querySelector("#pendingToggleLabel"),
   pendingPanel: document.querySelector("#pendingPanel"),
   pendingSummary: document.querySelector("#pendingSummary"),
+  reviewLegend: document.querySelector("#reviewLegend"),
   pendingQuestionGrid: document.querySelector("#pendingQuestionGrid"),
   nextUnansweredButton: document.querySelector("#nextUnansweredButton"),
   scorePanel: document.querySelector("#scorePanel"),
@@ -296,12 +299,18 @@ function startExam() {
   state.userAnswers = new Map();
   state.isSubmitted = false;
   state.isPendingPanelOpen = window.matchMedia("(min-width: 821px)").matches;
+  state.lastReviewJumpIndex = -1;
 
   elements.setupView.classList.add("is-hidden");
   elements.examView.classList.remove("is-hidden");
   elements.scorePanel.classList.add("is-hidden");
   elements.submitButton.classList.remove("is-hidden");
   elements.newTestButton.classList.add("is-hidden");
+  elements.pendingPanel.classList.remove("is-review");
+  elements.pendingToggleLabel.textContent = "Pendientes";
+  elements.nextUnansweredButton.textContent = "Siguiente sin responder";
+  elements.pendingQuestionGrid.setAttribute("aria-label", "Preguntas sin responder");
+  elements.reviewLegend.classList.add("is-hidden");
 
   elements.examTitle.textContent = examType.label;
   elements.examMeta.textContent =
@@ -577,6 +586,11 @@ function updateProgress() {
 }
 
 function renderPendingQuestions() {
+  if (state.isSubmitted) {
+    renderReviewQuestions();
+    return;
+  }
+
   const unansweredIndexes = getUnansweredIndexes();
   const pendingCount = unansweredIndexes.length;
 
@@ -604,6 +618,58 @@ function renderPendingQuestions() {
   });
 }
 
+function getReviewStatus(question) {
+  const correctLetters = getCorrectLetters(question);
+  const selectedAnswer = state.userAnswers.get(question.id);
+
+  if (correctLetters.length === 0) {
+    return "unscored";
+  }
+
+  if (!selectedAnswer) {
+    return "unanswered";
+  }
+
+  return correctLetters.includes(selectedAnswer) ? "correct" : "incorrect";
+}
+
+function renderReviewQuestions() {
+  const labels = {
+    correct: "correcta",
+    incorrect: "incorrecta",
+    unanswered: "sin responder",
+    unscored: "sin puntuar",
+  };
+  const counts = { correct: 0, incorrect: 0, unanswered: 0, unscored: 0 };
+
+  elements.pendingQuestionGrid.replaceChildren();
+
+  state.currentQuestions.forEach((question, questionIndex) => {
+    const status = getReviewStatus(question);
+    counts[status] += 1;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `pending-question-button is-${status}`;
+    button.dataset.questionIndex = String(questionIndex);
+    button.textContent = String(questionIndex + 1);
+    button.setAttribute(
+      "aria-label",
+      `Pregunta ${questionIndex + 1}, ${TOPIC_LABELS[question.topic]} ${question.number}: ${labels[status]}. Ir a la pregunta.`,
+    );
+    button.title = `Pregunta ${questionIndex + 1}: ${labels[status]}`;
+    elements.pendingQuestionGrid.append(button);
+  });
+
+  elements.pendingSummary.textContent = [
+    `${counts.correct} ${counts.correct === 1 ? "correcta" : "correctas"}`,
+    `${counts.incorrect} ${counts.incorrect === 1 ? "incorrecta" : "incorrectas"}`,
+    `${counts.unanswered} sin responder`,
+    `${counts.unscored} sin puntuar`,
+  ].join(" · ");
+  elements.nextUnansweredButton.disabled = counts.incorrect === 0;
+}
+
 function getUnansweredIndexes() {
   return state.currentQuestions.reduce((indexes, question, index) => {
     if (!state.userAnswers.has(question.id)) {
@@ -615,6 +681,19 @@ function getUnansweredIndexes() {
 }
 
 function goToNextUnanswered() {
+  if (state.isSubmitted) {
+    const incorrectIndexes = state.currentQuestions.reduce((indexes, question, index) => {
+      if (getReviewStatus(question) === "incorrect") indexes.push(index);
+      return indexes;
+    }, []);
+
+    if (incorrectIndexes.length === 0) return;
+
+    const nextIndex = incorrectIndexes.find((index) => index > state.lastReviewJumpIndex) ?? incorrectIndexes[0];
+    scrollToQuestion(nextIndex);
+    return;
+  }
+
   const unansweredIndexes = getUnansweredIndexes();
 
   if (unansweredIndexes.length === 0) {
@@ -651,7 +730,9 @@ function scrollToQuestion(questionIndex) {
     return;
   }
 
-  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (state.isSubmitted) state.lastReviewJumpIndex = questionIndex;
+  const offset = elements.examProgressDock.getBoundingClientRect().height + 24;
+  window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - offset, behavior: "smooth" });
   window.setTimeout(() => card.focus({ preventScroll: true }), 250);
 }
 
@@ -669,11 +750,18 @@ function submitExam() {
 
   renderScore(score);
   renderQuestions();
+  elements.pendingPanel.classList.add("is-review");
+  elements.pendingToggleLabel.textContent = "Revisión";
+  elements.nextUnansweredButton.textContent = "Siguiente incorrecta";
+  elements.pendingQuestionGrid.setAttribute("aria-label", "Resultados por pregunta");
+  elements.reviewLegend.classList.remove("is-hidden");
+  renderReviewQuestions();
+  setPendingPanelOpen(true);
 
   elements.submitButton.classList.add("is-hidden");
   elements.newTestButton.classList.remove("is-hidden");
   elements.scorePanel.classList.remove("is-hidden");
-  elements.scorePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  elements.examProgressDock.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function calculateScore() {

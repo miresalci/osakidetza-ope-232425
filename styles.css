@@ -436,6 +436,40 @@ button:disabled {
   padding: 1px 0 2px;
 }
 
+.pending-panel.is-review .pending-question-grid {
+  max-height: 230px;
+}
+
+.review-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.review-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-legend-item::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+.review-legend-item.is-correct { color: #247147; }
+.review-legend-item.is-incorrect { color: #a43f37; }
+.review-legend-item.is-unanswered { color: #727985; }
+.review-legend-item.is-unscored { color: #9a7309; }
+
 .pending-question-button {
   display: inline-grid;
   place-items: center;
@@ -454,6 +488,30 @@ button:disabled {
   border-color: var(--blue-strong);
   outline: 3px solid rgba(115, 152, 220, 0.22);
   outline-offset: 1px;
+}
+
+.pending-question-button.is-correct {
+  border-color: var(--mint-strong);
+  background: var(--mint);
+  color: #185333;
+}
+
+.pending-question-button.is-incorrect {
+  border-color: var(--rose-strong);
+  background: var(--rose);
+  color: #842b26;
+}
+
+.pending-question-button.is-unanswered {
+  border-color: #b7bec6;
+  background: #f0f1f2;
+  color: #44515e;
+}
+
+.pending-question-button.is-unscored {
+  border-color: var(--lemon-strong);
+  background: var(--lemon);
+  color: #69511a;
 }
 
 .pending-empty {
@@ -763,6 +821,10 @@ button:disabled {
   }
 
   .pending-question-grid {
+    max-height: 148px;
+  }
+
+  .pending-panel.is-review .pending-question-grid {
     max-height: 148px;
   }
 

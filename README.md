@@ -8,6 +8,8 @@ Aplicación estática para GitHub Pages con tests de práctica a partir de las p
 
 La aplicación carga este archivo directamente desde `app.js`, agrupa las preguntas por temario y usa las claves de `respuestas` para corregir el test. Tras enviarlo, muestra las fuentes de las respuestas y las impugnaciones. Si una pregunta no tiene ninguna respuesta aceptada, queda sin puntuar. No hay un paso de generación del JSONL en este repositorio.
 
+Al corregir se vuelven a leer las opciones marcadas en el formulario, para evitar usar respuestas desactualizadas si una selección cambia sin emitir eventos. Al recibir `pageshow` durante un test sin corregir, también se sincronizan las respuestas y el progreso.
+
 El libro `respuestas ope osakidetza.xlsx` aporta, por hoja y número de pregunta, las letras aceptadas en `respuesta` y la atribución de fuentes e impugnaciones en `comentario`. Al reconciliarlo con el JSONL, se conservan los enunciados y las opciones existentes. La columna `NotebookLM` de la hoja `tsid` sirve como contraste y no se incorpora como fuente de respuesta.
 
 ## Vista local
@@ -17,6 +19,14 @@ python3 -m http.server 8000
 ```
 
 Después abre `http://localhost:8000`.
+
+## Pruebas
+
+Las pruebas de regresión de respuestas y corrección usan Node.js, sin dependencias adicionales:
+
+```bash
+node --test tests/answers.test.cjs
+```
 
 ## Publicación
 

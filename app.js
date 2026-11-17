@@ -122,7 +122,9 @@ function bindEvents() {
   elements.backButton.addEventListener("click", returnToSetup);
   elements.submitButton.addEventListener("click", submitExam);
   elements.newTestButton.addEventListener("click", returnToSetup);
+  elements.questionsForm.addEventListener("input", handleAnswerChange);
   elements.questionsForm.addEventListener("change", handleAnswerChange);
+  window.addEventListener("pageshow", handlePageShow);
   elements.pendingToggleButton.addEventListener("click", () => {
     setPendingPanelOpen(!state.isPendingPanelOpen);
   });
@@ -568,7 +570,26 @@ function handleAnswerChange(event) {
     return;
   }
 
+  if (state.userAnswers.get(event.target.name) === event.target.value) {
+    return;
+  }
+
   state.userAnswers.set(event.target.name, event.target.value);
+  updateProgress();
+}
+
+function syncAnswersFromForm() {
+  // Read the visible selections even if they changed without an input/change event.
+  const checkedInputs = elements.questionsForm.querySelectorAll('input[type="radio"]:checked');
+  state.userAnswers = new Map(Array.from(checkedInputs, (input) => [input.name, input.value]));
+}
+
+function handlePageShow() {
+  if (state.isSubmitted || state.currentQuestions.length === 0) {
+    return;
+  }
+
+  syncAnswersFromForm();
   updateProgress();
 }
 
@@ -745,6 +766,11 @@ function setPendingPanelOpen(isOpen) {
 }
 
 function submitExam() {
+  if (state.isSubmitted || state.currentQuestions.length === 0) {
+    return;
+  }
+
+  syncAnswersFromForm();
   state.isSubmitted = true;
   const score = calculateScore();
 
@@ -755,7 +781,7 @@ function submitExam() {
   elements.nextUnansweredButton.textContent = "Siguiente incorrecta";
   elements.pendingQuestionGrid.setAttribute("aria-label", "Resultados por pregunta");
   elements.reviewLegend.classList.remove("is-hidden");
-  renderReviewQuestions();
+  updateProgress();
   setPendingPanelOpen(true);
 
   elements.submitButton.classList.add("is-hidden");
